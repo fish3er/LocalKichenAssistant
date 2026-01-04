@@ -7,7 +7,7 @@ class Config:
     # Dane
     DATA_DIR = "data"
     KAGGLE_DATASET = "moltean/fruits"
-    IMAGES_PER_CLASS = 1
+    IMAGES_PER_CLASS = 10
     
     # Sprzęt
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
