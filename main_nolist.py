@@ -25,7 +25,7 @@ def main():
         
     # 4. Pętla testowa
     y_true, y_pred = [], []
-    prompt = f"Classify this image. Select the best category from: {class_list_str}. Return only the name."
+    prompt = f"Classify this image. Return only the name."
     
     print(f"🚀 Start testu {Config.MODEL_NAME}...")
     
