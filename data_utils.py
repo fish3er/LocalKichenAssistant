@@ -12,7 +12,7 @@ def download_fruits_data(config):
 def get_test_df(config):
     """Tworzy DataFrame ze ścieżkami i oczyszczonymi etykietami."""
     # Ścieżka może się różnić zależnie od tego jak kaggle wypakuje pliki
-    path = os.path.join(config.DATA_DIR, "fruits-360_100x100", "fruits-360", "Test")
+    path = os.path.join(config.DATA_DIR, config.DATASET_VERSION, "fruits-360", "Test")
     
     data = []
     for folder_name in sorted(os.listdir(path)):

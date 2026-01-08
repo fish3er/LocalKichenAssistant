@@ -6,7 +6,7 @@ class Config:
     
     # Dane
     DATA_DIR = "data"
-    DATASET_VERSION = "fruits-360_100x100"  # Zmień na "fruits-360_original-size" dla nowych testów
+    DATASET_VERSION = "fruits-360_100x100"  # Dla małych obrazów 100x100
     KAGGLE_DATASET = "moltean/fruits"
     IMAGES_PER_CLASS = 10
     
