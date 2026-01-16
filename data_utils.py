@@ -6,7 +6,7 @@ def download_fruits_data(config):
     """Pobiera dane z Kaggle jeśli ich nie ma."""
     if not os.path.exists(config.DATA_DIR):
         os.makedirs(config.DATA_DIR)
-        print("📥 Pobieranie danych z Kaggle...")
+        print(" Pobieranie danych z Kaggle...")
         subprocess.run(["kaggle", "datasets", "download", "-d", config.KAGGLE_DATASET, "-p", config.DATA_DIR, "--unzip"])
 
 def get_test_df(config):

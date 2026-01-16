@@ -1,9 +1,10 @@
 import os
 from tqdm import tqdm
-from config import Config
+from config_100x100 import Config
 from data_utils import download_fruits_data, get_test_df
-from models import MoondreamWrapper, LlavaWrapper
+from models import MoondreamWrapper, LlavaWrapper, Qwen2VLWrapper
 from evaluator import generate_report 
+
 
 def main():
     # 1. Przygotowanie danych
@@ -13,7 +14,17 @@ def main():
     
     
     # 2. Wybór modelu
-    vlm = MoondreamWrapper(Config) if Config.MODEL_NAME == "moondream" else LlavaWrapper(Config)
+    # 2. Wybór modelu (Zaktualizowana logika)
+    print(f"Inicjalizacja modelu: {Config.MODEL_NAME}...")
+    
+    if Config.MODEL_NAME == "moondream":
+        vlm = MoondreamWrapper(Config)
+    elif Config.MODEL_NAME == "llava":
+        vlm = LlavaWrapper(Config)
+    elif Config.MODEL_NAME == "qwen":
+        vlm = Qwen2VLWrapper(Config)
+    else:
+        raise ValueError(f"Nieznany model w konfiguracji: {Config.MODEL_NAME}")
         
     # 3. Pętla testowa
     y_true, y_pred = [], []

@@ -2,7 +2,7 @@ import torch
 
 class Config:
     # Wybór modelu: "moondream" lub "llava"
-    MODEL_NAME = "llava" 
+    MODEL_NAME = "qwen" 
     
     # Dane
     DATA_DIR = "data"
