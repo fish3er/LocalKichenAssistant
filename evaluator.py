@@ -1,61 +1,87 @@
 import os
 import matplotlib
-# USTAWIENIE BACKENDU przed importem pyplot (ważne dla terminala!)
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.manifold import TSNE
 
-def generate_report(y_true, y_pred, labels):
-    # Ścieżka do folderu z wynikami
-    results_dir = "/mnt/DyskDodatkowy/LAK_Rybak/wyniki"
+def plot_tsne_separated(embeddings, labels, results_dir):
+    # (Ten fragment kodu bez zmian - t-SNE separated)
+    print("\n--> Generowanie t-SNE...")
+    if isinstance(embeddings, list): embeddings = np.array(embeddings)
+    embeddings = embeddings.squeeze()
+    tsne = TSNE(n_components=2, random_state=42, init='pca', learning_rate='auto')
+    tsne_results = tsne.fit_transform(embeddings)
+    
+    tsne_dir = os.path.join(results_dir, "tsne_pojedyncze")
+    os.makedirs(tsne_dir, exist_ok=True)
+    unique_classes = sorted(list(set(labels)))
+    
+    for target_cls in unique_classes:
+        plt.figure(figsize=(10, 8))
+        is_target = (np.array(labels) == target_cls)
+        plt.scatter(tsne_results[~is_target, 0], tsne_results[~is_target, 1], c='lightgray', alpha=0.3, s=20)
+        plt.scatter(tsne_results[is_target, 0], tsne_results[is_target, 1], c='red', alpha=0.9, s=40, edgecolors='black')
+        plt.title(f"Klaster: {target_cls}")
+        plt.savefig(os.path.join(tsne_dir, f"tsne_{target_cls.replace(' ', '_')}.png"))
+        plt.close()
+
+def plot_per_class_distributions(y_true, y_scores, labels, results_dir):
+    # (Ten fragment kodu bez zmian - Gauss)
+    print(f"\n--> Generowanie rozkładów...")
+    dist_dir = os.path.join(results_dir, "distrybucje_klas")
+    os.makedirs(dist_dir, exist_ok=True)
+    y_true = np.array(y_true); y_scores = np.array(y_scores)
+    for cls in labels:
+        cls_scores = y_scores[y_true == cls]
+        if len(cls_scores) < 2: continue
+        plt.figure(figsize=(8, 6))
+        sns.histplot(cls_scores, kde=True, bins=15, color='skyblue', edgecolor='black')
+        plt.title(f"Pewność: {cls}")
+        plt.savefig(os.path.join(dist_dir, f"dist_{cls.replace(' ', '_')}.png"))
+        plt.close()
+
+# --- ZMODYFIKOWANA FUNKCJA GŁÓWNA ---
+# Teraz y_scores i embeddings są OPCJONALNE i na końcu
+def generate_report(y_true, y_pred, labels, y_scores=None, embeddings=None):
+    results_dir = "wyniki"
     os.makedirs(results_dir, exist_ok=True)
 
-    # 1. Obliczenia
+    # 1. Metryki
     acc = accuracy_score(y_true, y_pred)
-    report = classification_report(y_true, y_pred, labels=labels, output_dict=True, zero_division=0)
-    
-    # 2. Konsola
     print("\n" + "="*30)
-    print(f"Liczba klas: {len(labels)}")
     print(f" Ogólne Accuracy: {acc:.2%}")
     print("-" * 30)
 
-    # 3. WYKRES 1: Macierz pomyłek
+    # 2. Wykresy standardowe (dla wszystkich modeli)
     cm = confusion_matrix(y_true, y_pred, labels=labels)
     plt.figure(figsize=(12, 10))
     sns.heatmap(cm, annot=False, xticklabels=labels, yticklabels=labels, cmap='Reds')
-    plt.xlabel("Przewidziane")
-    plt.ylabel("Prawdziwe")
-    plt.title(f"Macierz pomyłek (Total Acc: {acc:.2%})")
+    plt.title(f"Macierz pomyłek (Acc: {acc:.2%})")
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
-    
-    # Zapis i zamkniecie
     plt.savefig(os.path.join(results_dir, "macierz_pomylek.png"))
-    plt.close() 
+    plt.close()
 
-    # 4. WYKRES 2: Accuracy dla każdej klasy
+    report = classification_report(y_true, y_pred, labels=labels, output_dict=True, zero_division=0)
     plt.figure(figsize=(10, 16))
     class_accs = [report[label]['recall'] for label in labels]
-    colors = sns.color_palette("viridis", len(labels))
-    plt.barh(labels, class_accs, color=colors)
-    
-    plt.axvline(x=acc, color='red', linestyle='--', linewidth=2, label=f'Ogólne Accuracy ({acc:.2%})')
-    plt.text(acc + 0.01, len(labels)/2, f'WYNIK CAŁKOWITY: {acc:.2%}', 
-             color='red', fontweight='bold', fontsize=12, 
-             bbox=dict(facecolor='white', alpha=0.9, edgecolor='red'))
-
-    plt.xlabel('Accuracy (0.0 - 1.0)')
-    plt.ylabel('Klasy')
-    plt.title(f'Accuracy dla każdej z {len(labels)} klas')
-    plt.xlim(0, 1.05)
-    plt.grid(axis='x', linestyle=':', alpha=0.6)
-    plt.legend(loc='lower right')
+    plt.barh(labels, class_accs, color=sns.color_palette("viridis", len(labels)))
+    plt.axvline(x=acc, color='red', linestyle='--')
     plt.tight_layout()
-    
-    # Zapis i zamkniecie
     plt.savefig(os.path.join(results_dir, "accuracy_klas.png"))
-    plt.close() 
-    
-    print(f"\n Wykresy zapisano w folderze: {results_dir}")
+    plt.close()
+
+    # 3. Wykresy zaawansowane (Tylko dla DINO)
+    if y_scores is not None:
+        plot_per_class_distributions(y_true, y_scores, labels, results_dir)
+
+    if embeddings is not None:
+        try:
+            plot_tsne_separated(embeddings, y_true, results_dir)
+        except Exception as e:
+            print(f"Błąd t-SNE: {e}")
+
+    print(f"\n Wyniki w: {os.path.abspath(results_dir)}")

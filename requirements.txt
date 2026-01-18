@@ -1,9 +1,11 @@
-# Podstawa ML i obsługa GPU
+# --- Podstawa ML i obsługa GPU ---
+# DINOv2 wymaga w miarę nowej wersji PyTorcha i Torchvision
 torch>=2.1.0
 torchvision
 torchaudio
 
-# Modele Hugging Face
+# --- Modele Hugging Face (dla Qwen/LLaVA/Moondream) ---
+# Pozostawiamy je, aby stare skrypty nadal działały
 transformers>=4.40.0
 accelerate>=0.29.0
 bitsandbytes>=0.43.0
@@ -11,16 +13,20 @@ sentencepiece
 protobuf
 einops
 
-# Przetwarzanie danych i metryki
+# --- Przetwarzanie danych i obliczenia ---
 pandas
 numpy
+# Scipy często jest wymagane przez scikit-learn przy zaawansowanych metrykach
+scipy
 scikit-learn
 tqdm
-pillow
+# Pillow jest kluczowe dla DINOv2 do ładowania obrazów
+Pillow
 
-# Wizualizacja
+# --- Wizualizacja i raporty ---
 matplotlib
 seaborn
 
-# Pobieranie danych
+# --- Pobieranie danych ---
 kaggle
+requests

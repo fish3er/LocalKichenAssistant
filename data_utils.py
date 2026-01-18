@@ -3,14 +3,12 @@ import pandas as pd
 import subprocess
 
 def download_fruits_data(config):
-    """Pobiera dane z Kaggle jeśli folder główny wersji nie istnieje."""
+    """Pobiera dane z Kaggle."""
     target_dir = os.path.join(config.DATA_DIR, config.DATASET_VERSION)
-    
     if not os.path.exists(target_dir):
-        print(f" Pobieranie danych {config.KAGGLE_DATASET} do {target_dir}...")
+        print(f" Pobieranie danych {config.KAGGLE_DATASET}...")
         if not os.path.exists(config.DATA_DIR):
             os.makedirs(config.DATA_DIR)
-            
         subprocess.run([
             "kaggle", "datasets", "download", 
             "-d", config.KAGGLE_DATASET, 
@@ -18,87 +16,87 @@ def download_fruits_data(config):
             "--unzip"
         ])
         print(" Pobieranie zakończone.")
-    else:
-        print(f" Folder {target_dir} już istnieje. Pomijam pobieranie.")
 
-def find_images_folder(start_path):
-    """
-    Rekurencyjnie szuka folderu zawierającego zdjęcia testowe.
-    Priorytet: folder o nazwie 'Test', a jeśli brak to 'Validation'.
-    """
-    print(f" Szukam folderu z danymi w: {start_path} ...")
-    
-    candidate = None
-    
-    for root, dirs, files in os.walk(start_path):
-        # Szukamy folderu Test
-        if "Test" in dirs:
-            return os.path.join(root, "Test")
-        # Szukamy folderu Validation (częste w wersji original-size)
-        if "Validation" in dirs:
-            candidate = os.path.join(root, "Validation")
-            
-        # Jeśli znaleźliśmy Validation, ale szukamy dalej Testu (bo Test jest lepszy),
-        # to nie przerywamy od razu, chyba że zejdziemy za głęboko.
-        # Dla uproszczenia: jeśli znajdziemy Test to zwracamy od razu.
-        
-    # Jeśli przeszliśmy wszystko i nie ma Test, ale było Validation, zwracamy Validation
-    if candidate:
-        print(f" Nie znaleziono folderu 'Test', używam 'Validation'.")
-        return candidate
+def _clean_label_name(folder_name):
+    """Logika czyszczenia nazw (wspólna dla obu metod)."""
+    clean = folder_name.replace("-", " ").replace("_", " ").lower()
+    clean = ''.join([i for i in clean if not i.isdigit()]).strip()
+    clean = clean.split()[0] # Grupowanie (np. apple red 1 -> apple)
+    return clean
 
-    return None
-
-def get_test_df(config):
-    """Tworzy DataFrame, automatycznie znajdując ścieżkę do zdjęć."""
-    
-    # Punkt startowy poszukiwań: data/NAZWA_WERSJI
-    base_search_path = os.path.join(config.DATA_DIR, config.DATASET_VERSION)
-    
-    # Automatyczne szukanie właściwego podfolderu
-    final_path = find_images_folder(base_search_path)
-    
-    if not final_path:
-        # Ostatnia deska ratunku - może użytkownik nie ma podfolderów wersji?
-        # Sprawdźmy w samym 'data'
-        final_path = find_images_folder(config.DATA_DIR)
-
-    if not final_path:
-        raise FileNotFoundError(
-            f"Nie udało się znaleźć folderu 'Test' ani 'Validation' wewnątrz {base_search_path}. "
-            "Sprawdź czy dane zostały poprawnie pobrane i rozpakowane."
-        )
-
-    print(f" Wczytywanie zdjęć z: {final_path}")
-    
+def _scan_folder_for_images(base_path, max_images=None):
+    """Pomocniczy skaner folderów."""
     data = []
-    # Sortujemy foldery
-    if not os.path.exists(final_path):
-         raise FileNotFoundError(f"Ścieżka nie istnieje: {final_path}")
+    if not os.path.exists(base_path):
+        return []
 
-    folders = sorted([d for d in os.listdir(final_path) if os.path.isdir(os.path.join(final_path, d))])
+    subfolders = sorted([d for d in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, d))])
     
-    for folder_name in folders:
-        folder_path = os.path.join(final_path, folder_name)
+    for folder_name in subfolders:
+        folder_path = os.path.join(base_path, folder_name)
+        clean_label = _clean_label_name(folder_name)
         
-        # Logika czyszczenia nazw (usuwanie cyfr, znaków specjalnych)
-        # np. "apple_hit_1" -> "apple", "Banana" -> "banana"
-        clean_label = folder_name.replace("-", " ").replace("_", " ").lower()
-        clean_label = ''.join([i for i in clean_label if not i.isdigit()]).strip()
-        # Bierzemy pierwsze słowo jako główną kategorię (opcjonalne, zależy od potrzeb)
-        clean_label = clean_label.split()[0] 
+        files = sorted([f for f in os.listdir(folder_path) if f.lower().endswith(('.jpg', '.png', '.jpeg'))])
         
-        # Pobieranie zdjęć
-        files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-        files = sorted(files)
-        
-        for f in files[:config.IMAGES_PER_CLASS]:
+        if max_images:
+            files = files[:max_images]
+            
+        for f in files:
             data.append({
-                "path": os.path.join(folder_path, f), 
+                "path": os.path.join(folder_path, f),
                 "true_label": clean_label
             })
-            
-    if not data:
-        raise ValueError("Znaleziono folder, ale jest pusty lub nie zawiera zdjęć (jpg/png).")
+    return data
 
-    return pd.DataFrame(data)
+def _find_dir(base_path, dir_name):
+    """Szuka folderu Training lub Test rekurencyjnie."""
+    for root, dirs, files in os.walk(base_path):
+        if dir_name in dirs:
+            return os.path.join(root, dir_name)
+    return None
+
+# --- FUNKCJA DLA NOWEGO KODU (DINO) ---
+def get_train_test_dfs(config):
+    base_search_path = os.path.join(config.DATA_DIR, config.DATASET_VERSION)
+    
+    train_dir = _find_dir(base_search_path, "Training")
+    test_dir = _find_dir(base_search_path, "Test")
+            
+    if not train_dir or not test_dir:
+        raise FileNotFoundError("Nie znaleziono folderów Training/Test!")
+        
+    print(f" Indexing Training: {train_dir}")
+    train_list = _scan_folder_for_images(train_dir, max_images=config.IMAGES_FOR_PROTOTYPE)
+    
+    print(f" Indexing Test: {test_dir}")
+    test_list = _scan_folder_for_images(test_dir, max_images=config.IMAGES_FOR_TEST)
+    
+    return pd.DataFrame(train_list), pd.DataFrame(test_list)
+
+# --- FUNKCJA DLA STAREGO KODU (Qwen/Moondream) ---
+def get_test_df(config):
+    """
+    Przywrócona funkcja dla kompatybilności wstecznej.
+    """
+    base_search_path = os.path.join(config.DATA_DIR, config.DATASET_VERSION)
+    
+    # Próbujemy znaleźć folder Test, jak nie ma to Validation
+    test_dir = _find_dir(base_search_path, "Test")
+    if not test_dir:
+        test_dir = _find_dir(base_search_path, "Validation")
+        
+    if not test_dir:
+        # Ostateczność: szukaj w samym folderze wersji
+        test_dir = base_search_path
+
+    print(f" Wczytywanie zdjęć testowych z: {test_dir}")
+    
+    # Używamy config.IMAGES_PER_CLASS ze starego configu
+    limit = getattr(config, 'IMAGES_PER_CLASS', 10)
+    
+    data_list = _scan_folder_for_images(test_dir, max_images=limit)
+    
+    if not data_list:
+        raise ValueError("Nie znaleziono zdjęć!")
+        
+    return pd.DataFrame(data_list)
