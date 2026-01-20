@@ -54,11 +54,3 @@ Jeśli chcesz przetestować model DINO na swoich danych:
 python run_dino_experiment.py
 ```
 
-### Ewaluacja wyników:
-Aby sprawdzić, jak dobrze radzi sobie wytrenowany model:
-```bash
-python evaluator.py
-```
-
----
-*Plik `.gitignore` dba o to, aby lokalne wagi modeli i pliki tymczasowe nie trafiały do repozytorium.*
